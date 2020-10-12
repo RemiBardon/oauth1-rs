@@ -1,7 +1,7 @@
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC};
 use rand::distributions::{Alphanumeric, Distribution};
 use rand::thread_rng;
-use ring::hmac::{self, HMAC_SHA1_FOR_LEGACY_USE_ONLY};
+use ring::hmac::{self, HMAC_SHA512};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
@@ -33,13 +33,13 @@ pub fn authorize(
     params: Option<HashMap<&str, Cow<str>>>,
 ) -> String {
     let mut params = params.unwrap_or_else(HashMap::new);
-    let timestamp = time::OffsetDateTime::now().timestamp().to_string();
+    let timestamp = time::OffsetDateTime::now_utc().timestamp().to_string();
 
     let nonce: String = Alphanumeric.sample_iter(thread_rng()).take(32).collect();
 
     params.insert("oauth_consumer_key", consumer.key.clone().into());
     params.insert("oauth_nonce", nonce.into());
-    params.insert("oauth_signature_method", "HMAC-SHA1".into());
+    params.insert("oauth_signature_method", "HMAC-SHA512".into());
     params.insert("oauth_timestamp", timestamp.into());
     params.insert("oauth_version", "1.0".into());
     if let Some(tk) = token {
@@ -112,7 +112,7 @@ fn gen_signature(
         encode(token_secret.unwrap_or(""))
     );
 
-    let s_key = hmac::Key::new(HMAC_SHA1_FOR_LEGACY_USE_ONLY, key.as_ref());
+    let s_key = hmac::Key::new(HMAC_SHA512, key.as_ref());
     let signature = hmac::sign(&s_key, base.as_bytes());
 
     base64::encode(signature.as_ref())
